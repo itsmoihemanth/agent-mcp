@@ -70,7 +70,7 @@ I have hands-on experience building AI agent orchestration systems and multi-mod
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/agent-mcp.git
+git clone https://github.com/itsmoihemanth/agent-mcp.git
 cd agent-mcp
 
 # Configure environment
