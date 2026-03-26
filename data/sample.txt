@@ -1,0 +1,17 @@
+AgentMCP - LangGraph Agent with MCP Tool Integration
+
+AgentMCP is a portfolio-grade AI agent built with LangGraph, demonstrating
+modern agent orchestration patterns. It combines multiple tool integration
+approaches in a single, deployable system.
+
+Key Capabilities:
+- LangGraph state machine for structured agent reasoning and tool selection
+- MCP (Model Context Protocol) server for file operations via stdio transport
+- Native LangGraph tools including calculator and web search (Tavily)
+- RAG pipeline using pgvector for document retrieval and context augmentation
+- FastAPI REST API with OpenAPI documentation
+- Full Docker Compose deployment (FastAPI + PostgreSQL/pgvector)
+
+This file serves as sample data for the MCP file_reader tool demonstration.
+The agent can read this file using the MCP protocol to answer questions
+about the project's capabilities and architecture.
