@@ -27,6 +27,9 @@ graph TD
     LangGraph -->|response| FastAPI
     FastAPI -->|JSON| User
 ```
+## Demo
+
+![AgentMCP Demo](docs/demo.gif)
 
 The agent receives a user message, reasons about which tools to invoke using the ReAct pattern, executes one or more tool calls, and synthesizes a final response. Tools come from three integration patterns: **native LangGraph tools** (calculator, python executor, URL fetcher, web search), **MCP protocol tools** (file reader via stdio transport), and **RAG retrieval** (pgvector similarity search). A built-in chat UI at `/` provides a browser-based interface with conversation memory, document upload, and execution trace viewing.
 
