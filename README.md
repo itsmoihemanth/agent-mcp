@@ -14,9 +14,11 @@
 
 ```mermaid
 graph TD
-    User["User"] -->|"POST /agent/chat"| FastAPI["FastAPI"]
+    User["User / Chat UI"] -->|"POST /agent/chat"| FastAPI["FastAPI"]
     FastAPI --> LangGraph["LangGraph ReAct Agent"]
     LangGraph -->|route| Calculator["Calculator"]
+    LangGraph -->|route| PythonExec["Python Executor"]
+    LangGraph -->|route| URLFetch["URL Fetcher"]
     LangGraph -->|route| WebSearch["Tavily Web Search"]
     LangGraph -->|route| FileReader["MCP File Reader"]
     LangGraph -->|route| RAG["RAG Retriever"]
@@ -26,7 +28,7 @@ graph TD
     FastAPI -->|JSON| User
 ```
 
-The agent receives a user message, reasons about which tools to invoke using the ReAct pattern, executes one or more tool calls, and synthesizes a final response. Tools are sourced from two integration patterns: **native LangGraph tools** (calculator, web search) and **MCP protocol tools** (file reader via stdio transport).
+The agent receives a user message, reasons about which tools to invoke using the ReAct pattern, executes one or more tool calls, and synthesizes a final response. Tools come from three integration patterns: **native LangGraph tools** (calculator, python executor, URL fetcher, web search), **MCP protocol tools** (file reader via stdio transport), and **RAG retrieval** (pgvector similarity search). A built-in chat UI at `/` provides a browser-based interface with conversation memory, document upload, and execution trace viewing.
 
 ---
 
@@ -39,11 +41,15 @@ I have hands-on experience building AI agent orchestration systems and multi-mod
 ## Features
 
 - **ReAct Agent** -- LangGraph state machine with explicit tool routing and multi-step reasoning
+- **6 Tools** -- Calculator, sandboxed Python executor, URL content fetcher, Tavily web search, MCP file reader, RAG retriever
 - **MCP Integration** -- File reader server using the Model Context Protocol (stdio transport)
-- **Native Tools** -- Calculator (safe math eval) and Tavily web search
 - **RAG Pipeline** -- Document ingestion, chunking, embedding, and similarity search via pgvector
+- **Chat UI** -- Browser-based interface at `/` with dark/light theme, conversation memory, document upload, and execution trace viewer
+- **Conversation Memory** -- Per-session message history via LangGraph's MemorySaver checkpointer
 - **Structured Observability** -- JSON-structured logging of every agent step, tool call, and latency
+- **Execution Tracing** -- Per-request trace endpoint (`/agent/trace/{run_id}`) showing LLM decisions and tool calls
 - **Graceful Degradation** -- Agent runs with reduced capabilities if MCP or vectorstore are unavailable
+- **LLM Gateway Support** -- Works with OpenAI directly or any OpenAI-compatible proxy (LiteLLM, Azure, etc.) via `OPENAI_API_BASE`
 - **Docker Deployment** -- Full stack (FastAPI + PostgreSQL/pgvector) in one `docker-compose up`
 - **Clean API** -- Typed request/response schemas, OpenAPI docs auto-generated at `/docs`
 
@@ -89,7 +95,17 @@ Expected response:
 }
 ```
 
-API documentation is available at [http://localhost:8000/docs](http://localhost:8000/docs).
+Open [http://localhost:8000](http://localhost:8000) for the chat UI, or [http://localhost:8000/docs](http://localhost:8000/docs) for the API documentation.
+
+### Using a Custom LLM Gateway
+
+To route LLM calls through LiteLLM, Azure OpenAI, or any OpenAI-compatible proxy, set `OPENAI_API_BASE` in your `.env`:
+
+```bash
+OPENAI_API_KEY=your-proxy-key
+OPENAI_API_BASE=http://your-litellm-proxy:4000/v1
+MODEL_NAME=gpt-4.1-mini
+```
 
 ---
 
@@ -113,25 +129,27 @@ curl -s -X POST http://localhost:8000/agent/chat \
 }
 ```
 
-### 2. Web Search -- Current Information
+### 2. Python Executor -- Code Execution
 
 ```bash
 curl -s -X POST http://localhost:8000/agent/chat \
   -H "Content-Type: application/json" \
-  -d '{"message": "What are the latest developments in MCP protocol?"}' | jq
+  -d '{"message": "Generate 5 secure random passwords with 16 characters each"}' | jq
 ```
 
-```json
-{
-  "response": "Based on my web search, the Model Context Protocol...",
-  "tools_used": ["tavily_search"],
-  "metadata": { "duration_ms": 3500 }
-}
+The agent writes and executes Python code in a sandboxed environment (standard library only, 10-second timeout, dangerous modules blocked).
+
+### 3. URL Fetcher -- Live Web Content
+
+```bash
+curl -s -X POST http://localhost:8000/agent/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Summarize https://news.ycombinator.com"}' | jq
 ```
 
-> Requires `TAVILY_API_KEY` to be set. Without it, the agent will respond using its own knowledge.
+The agent fetches the URL, extracts text content, and summarizes it.
 
-### 3. RAG -- Document Retrieval
+### 4. RAG -- Document Retrieval
 
 First, ingest a document:
 
@@ -164,6 +182,7 @@ The agent will use the `search_documents` tool to retrieve relevant chunks from 
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
+| `GET` | `/` | Chat UI (browser interface) |
 | `GET` | `/health` | Health check -- database and pgvector status |
 | `POST` | `/agent/chat` | Send a message to the agent (triggers tool use) |
 | `GET` | `/tools` | List all available tools and descriptions |
@@ -214,6 +233,8 @@ bash scripts/test_e2e.sh
 | Variable | Production Value | Notes |
 |----------|-----------------|-------|
 | `OPENAI_API_KEY` | Your real key | Required |
+| `OPENAI_API_BASE` | Proxy URL (optional) | For LiteLLM, Azure, or other OpenAI-compatible gateways |
+| `MODEL_NAME` | `gpt-4.1-mini` | Any model your provider supports |
 | `DATABASE_URL` | Production Postgres URL | Use managed Postgres with pgvector |
 | `LOG_JSON` | `true` | Structured logs for log aggregation |
 | `LOG_LEVEL` | `INFO` or `WARNING` | Reduce noise in production |
@@ -243,12 +264,13 @@ AgentMCP runs on any Docker-compatible platform:
 | Technology | Purpose |
 |------------|---------|
 | Python 3.12 | Runtime |
-| LangGraph | ReAct agent orchestration |
-| FastAPI | REST API framework |
+| LangGraph | ReAct agent orchestration with memory checkpointer |
+| FastAPI | REST API framework + static file serving |
 | PostgreSQL 17 + pgvector | Vector store and database |
 | langchain-mcp-adapters | MCP-to-LangGraph tool bridge |
 | MCP SDK (stdio) | File reader server |
 | Tavily | Web search tool |
+| simpleeval | Safe math expression evaluation |
 | structlog | Structured JSON logging |
 | Docker Compose | Single-command deployment |
 
@@ -262,12 +284,14 @@ agent-mcp/
 │   ├── main.py                  # FastAPI app, lifespan, error handlers
 │   ├── agent/
 │   │   ├── graph.py             # LangGraph ReAct agent factory
-│   │   └── tools.py             # Native tools (calculator, web search)
+│   │   ├── tools.py             # Native tools (calculator, python executor, URL fetcher)
+│   │   └── tracing.py           # Execution tracer callback handler
 │   ├── api/
-│   │   ├── routes_agent.py      # POST /agent/chat, GET /agent/trace
+│   │   ├── routes_agent.py      # POST /agent/chat
 │   │   ├── routes_health.py     # GET /health
 │   │   ├── routes_rag.py        # POST /rag/ingest, POST /rag/query
-│   │   └── routes_tools.py      # GET /tools
+│   │   ├── routes_tools.py      # GET /tools
+│   │   └── routes_trace.py      # GET /agent/trace/{run_id}
 │   ├── core/
 │   │   ├── config.py            # Pydantic settings (env var loading)
 │   │   └── logging.py           # structlog configuration
@@ -290,6 +314,8 @@ agent-mcp/
 ├── data/
 │   ├── sample.txt               # Demo file for MCP file reader
 │   └── ieee_paper.txt           # IEEE paper for RAG demo
+├── static/
+│   └── index.html               # Chat UI (dark/light theme, trace viewer)
 ├── docker-compose.yml           # FastAPI + PostgreSQL/pgvector
 ├── Dockerfile                   # Python 3.12-slim based image
 ├── .env.example                 # Environment variable template
