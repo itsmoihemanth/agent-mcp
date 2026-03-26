@@ -29,7 +29,7 @@ graph TD
 ```
 ## Demo
 
-![AgentMCP Demo](docs/demo.gif)
+![AgentMCP Demo](data/demo.gif)
 
 The agent receives a user message, reasons about which tools to invoke using the ReAct pattern, executes one or more tool calls, and synthesizes a final response. Tools come from three integration patterns: **native LangGraph tools** (calculator, python executor, URL fetcher, web search), **MCP protocol tools** (file reader via stdio transport), and **RAG retrieval** (pgvector similarity search). A built-in chat UI at `/` provides a browser-based interface with conversation memory, document upload, and execution trace viewing.
 
@@ -326,6 +326,16 @@ agent-mcp/
 ```
 
 ---
+---
+
+## Author
+
+**Hemanth Venkata Indurthi** — AI Engineer · IEEE Published Researcher
+
+- 🌐 [Portfolio](https://itsmoihemanth.github.io)
+- 📄 [IEEE CASE 2025 Paper](https://ieeexplore.ieee.org/document/11164053)
+- 💼 [LinkedIn](https://www.linkedin.com/in/hemanth-venkata-indurthi-99052219b/)
+- 📬 hvindurthi@gmail.com
 
 ## License
 
